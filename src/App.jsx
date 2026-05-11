@@ -1,39 +1,48 @@
 import { useEffect, useState } from "react";
 import "./index.css";
 import { typeChart } from "./typeChart";
+import { competitiveData } from "./competitiveData";
+import { gameDexes } from "./gameDexes";
 
-const pokemonTypes = [
-  "normal",
-  "fire",
-  "water",
-  "electric",
-  "grass",
-  "ice",
-  "fighting",
-  "poison",
-  "ground",
-  "flying",
-  "psychic",
-  "bug",
-  "rock",
-  "ghost",
-  "dragon",
-  "dark",
-  "steel",
-  "fairy",
-];
+  const pokemonTypes = [
+    "normal",
+    "fire",
+    "water",
+    "electric",
+    "grass",
+    "ice",
+    "fighting",
+    "poison",
+    "ground",
+    "flying",
+    "psychic",
+    "bug",
+    "rock",
+    "ghost",
+    "dragon",
+    "dark",
+    "steel",
+    "fairy",
+  ];
 
-function App() {
-  const [pokemonName, setPokemonName] = useState("");
-  const [pokemonData, setPokemonData] = useState(null);
-  const [error, setError] = useState("");
-  const [pokemonList, setPokemonList] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [team, setTeam] = useState([]);
-  const [selectedTypes, setSelectedTypes] = useState([]);
-  const [typePokemon, setTypePokemon] = useState([]);
-  const [typeLoading, setTypeLoading] = useState(false);
-  const [typeError, setTypeError] = useState("");
+  function App() {
+    const [pokemonName, setPokemonName] = useState("");
+    const [pokemonData, setPokemonData] = useState(null);
+    const [error, setError] = useState("");
+    const [pokemonList, setPokemonList] = useState([]);
+    const [suggestions, setSuggestions] = useState([]);
+    const [team, setTeam] = useState([]);
+    const [selectedTypes, setSelectedTypes] = useState([]);
+    const [selectedGameDex, setSelectedGameDex] = useState(() => {
+      return localStorage.getItem("selectedGameDex") || "all";
+    });
+    const [typePokemon, setTypePokemon] = useState([]);
+    const [typeLoading, setTypeLoading] = useState(false);
+    const [typeError, setTypeError] = useState("");
+
+    useEffect(() => {
+      localStorage.setItem("selectedGameDex", selectedGameDex);
+    }, [selectedGameDex]);
 
     useEffect(() => {
       async function fetchPokemonList() {
@@ -131,12 +140,42 @@ function App() {
           );
         }
 
-        setTypePokemon(filteredPokemon);
+        const generationFilteredPokemon = filteredPokemon.filter((pokemon) => {
+          const pokemonId = Number(
+            pokemon.url
+              .split("/")
+              .filter(Boolean)
+              .pop()
+          );
+
+          return isPokemonInSelectedGameDex(pokemonId);
+        });
+
+        setTypePokemon(generationFilteredPokemon);
+
       } catch (error) {
         setTypeError("Could not load Pokémon for that type combination.");
       } finally {
         setTypeLoading(false);
       }
+    }
+
+    function showAllPokemonInSelectedDex() {
+      setSelectedTypes([]);
+      setTypeError("");
+      setTypeLoading(false);
+
+      const selectedDex = gameDexes[selectedGameDex];
+
+      const filteredPokemon = pokemonList.filter((pokemon) => {
+        if (!selectedDex || selectedDex.pokemonIds === null) {
+          return true;
+        }
+
+        return selectedDex.pokemonIds.includes(pokemon.id);
+      });
+
+      setTypePokemon(filteredPokemon);
     }
 
           function addToTeam() {
@@ -162,6 +201,12 @@ function App() {
 
         function removeFromTeam(pokemonId) {
           setTeam(team.filter((pokemon) => pokemon.id !== pokemonId));
+        }
+
+        function clearTeam() {
+          setTeam([]);
+          setPokemonData(null);
+          setError("");
         }
 
         function analyzeTeam() {
@@ -256,6 +301,118 @@ function App() {
         const analysis = analyzeTeam();
         const pokemonAnalysis = analyzePokemon(pokemonData);
 
+        const competitiveInfo = pokemonData
+          ? getCompetitiveInfo(pokemonData.name)
+          : null;
+
+          const pokemonRole = pokemonData ? getPokemonRole(pokemonData) : null;
+          const natureRecommendations = pokemonData
+            ? getNatureRecommendations(pokemonData)
+            : [];
+
+      function isPokemonInSelectedGameDex(pokemonId) {
+        const selectedDex = gameDexes[selectedGameDex];
+
+        if (!selectedDex || selectedDex.pokemonIds === null) {
+          return true;
+        }
+
+        return selectedDex.pokemonIds.includes(pokemonId);
+      }
+
+      function getCompetitiveInfo(pokemonName) {
+        return (
+          competitiveData[pokemonName.toLowerCase()] || {
+            tier: "LEGAL",
+            legalClass: "legal",
+          }
+        );
+      }
+
+      function getStatValue(pokemon, statName) {
+        return pokemon.stats.find((stat) => stat.stat.name === statName)?.base_stat || 0;
+      }
+
+      function getPokemonRole(pokemon) {
+        const attack = getStatValue(pokemon, "attack");
+        const specialAttack = getStatValue(pokemon, "special-attack");
+        const defense = getStatValue(pokemon, "defense");
+        const specialDefense = getStatValue(pokemon, "special-defense");
+        const speed = getStatValue(pokemon, "speed");
+        const hp = getStatValue(pokemon, "hp");
+
+        const bulk = hp + defense + specialDefense;
+
+        if (speed >= 100 && attack >= specialAttack && attack >= 90) {
+          return "Fast Physical Sweeper";
+        }
+
+        if (speed >= 100 && specialAttack > attack && specialAttack >= 90) {
+          return "Fast Special Sweeper";
+        }
+
+        if (attack >= specialAttack && attack >= 90) {
+          return "Physical Attacker";
+        }
+
+        if (specialAttack > attack && specialAttack >= 90) {
+          return "Special Attacker";
+        }
+
+        if (bulk >= 250) {
+          return "Tank";
+        }
+
+        return "Balanced";
+      }
+
+      function getNatureRecommendations(pokemon) {
+        const attack = getStatValue(pokemon, "attack");
+        const specialAttack = getStatValue(pokemon, "special-attack");
+        const speed = getStatValue(pokemon, "speed");
+        const defense = getStatValue(pokemon, "defense");
+        const specialDefense = getStatValue(pokemon, "special-defense");
+        const hp = getStatValue(pokemon, "hp");
+
+        if (speed >= 100 && attack >= specialAttack) {
+          return ["Jolly", "Adamant"];
+        }
+
+        if (speed >= 100 && specialAttack > attack) {
+          return ["Timid", "Modest"];
+        }
+
+        if (attack > specialAttack) {
+          return ["Adamant", "Jolly"];
+        }
+
+        if (specialAttack > attack) {
+          return ["Modest", "Timid"];
+        }
+
+        if (hp + defense + specialDefense >= 250) {
+          return ["Bold", "Calm", "Impish", "Careful"];
+        }
+
+        return ["Neutral nature"];
+      }
+
+      function getNatureEffect(nature) {
+        const natureEffects = {
+          Adamant: "+Attack, -Special Attack",
+          Jolly: "+Speed, -Special Attack",
+          Modest: "+Special Attack, -Attack",
+          Timid: "+Speed, -Attack",
+          Bold: "+Defense, -Attack",
+          Calm: "+Special Defense, -Attack",
+          Impish: "+Defense, -Special Attack",
+          Careful: "+Special Defense, -Special Attack",
+          "Neutral nature": "No stat increase or decrease",
+        };
+
+        return natureEffects[nature] || "Nature effect unknown";
+      }
+
     return (
       <div className="app">
         <div className="card">
@@ -283,11 +440,12 @@ function App() {
                     setPokemonName(value);
 
                     if (value.length > 0) {
-                      const filteredSuggestions = pokemonList
-                        .filter((pokemon) =>
-                          pokemon.name.startsWith(value.toLowerCase())
-                        )
-                        .slice(0, 5);
+                    const filteredSuggestions = pokemonList
+                      .filter((pokemon) =>
+                        pokemon.name.startsWith(value.toLowerCase()) &&
+                        isPokemonInSelectedGameDex(pokemon.id)
+                      )
+                      .slice(0, 5);
 
                       setSuggestions(filteredSuggestions);
                     } else {
@@ -328,10 +486,42 @@ function App() {
                 </div>
               )}
 
+                <div className="generation-filter">
+                  <h2>Filter by Game Dex</h2>
+
+                  <select
+                    className="generation-select"
+                    value={selectedGameDex}
+                    onChange={(event) => {
+                      setSelectedGameDex(event.target.value);
+                      setSelectedTypes([]);
+                      setTypePokemon([]);
+                    }}
+                  >
+                    {Object.entries(gameDexes).map(([gameDexKey, gameDex]) => (
+                      <option key={gameDexKey} value={gameDexKey}>
+                        {gameDex.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
               <div className="type-browser">
                 <h2>Browse by Type</h2>
 
                 <div className="type-buttons">
+
+                  <button
+                    className={`type-button ${
+                      selectedTypes.length === 0 && typePokemon.length > 0
+                        ? "active-type"
+                        : ""
+                    }`}
+                    onClick={showAllPokemonInSelectedDex}
+                  >
+                    all
+                  </button>
+
                   {pokemonTypes.map((type) => (
                     <button
                       key={type}
@@ -370,10 +560,13 @@ function App() {
                         onClick={() => searchPokemon(pokemon.name)}
                       >
                         <img
-                          src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.url
-                            .split("/")
-                            .filter(Boolean)
-                            .pop()}.png`}
+                          src={
+                            pokemon.sprite ||
+                            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.url
+                              .split("/")
+                              .filter(Boolean)
+                              .pop()}.png`
+                          }
                           alt={pokemon.name}
                         />
 
@@ -396,7 +589,18 @@ function App() {
             <div className="middle-panel">
 
               <div className="team-section">
-                <h2>Your Team</h2>
+                <div className="team-header">
+                  <h2>Your Team</h2>
+
+                  {team.length > 0 && (
+                    <button
+                      className="clear-team-button"
+                      onClick={clearTeam}
+                    >
+                      Clear Team
+                    </button>
+                  )}
+                </div>
 
                 <div className="team-grid">
                   {team.map((pokemon) => (
@@ -410,7 +614,11 @@ function App() {
                         alt={pokemon.name}
                       />
 
-                      <p>{pokemon.name}</p>
+                        <p>{pokemon.name}</p>
+
+                        <span className="team-role-label">
+                          {getPokemonRole(pokemon)}
+                        </span>
 
                       <button
                         className="remove-team-button"
@@ -445,61 +653,69 @@ function App() {
                     <div className="analysis-section">
                       <h3>Strong Against</h3>
 
-                      {Object.entries(analysis.strongAgainst)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([type, count]) => (
-                          <span
-                            key={type}
-                            className={`type-badge ${type}`}
-                          >
-                            {type.toUpperCase()}
-                          </span>
-                        ))}
+                        <div className="analysis-badges">
+                          {Object.entries(analysis.strongAgainst)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([type, count]) => (
+                              <span
+                                key={type}
+                                className={`type-badge ${type}`}
+                              >
+                                {type.toUpperCase()}
+                              </span>
+                            ))}
+                        </div>
                     </div>
 
                     <div className="analysis-section">
                       <h3>Weaknesses</h3>
 
-                      {Object.entries(analysis.weaknesses)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([type, count]) => (
-                          <span
-                            key={type}
-                            className={`type-badge ${type}`}
-                          >
-                            {type.toUpperCase()}
-                          </span>
-                        ))}
+                      <div className="analysis-badges">
+                        {Object.entries(analysis.weaknesses)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([type, count]) => (
+                            <span
+                              key={type}
+                              className={`type-badge ${type}`}
+                            >
+                              {type.toUpperCase()}
+                            </span>
+                          ))}
+                      </div>
                     </div>
 
                     <div className="analysis-section">
                       <h3>Resistances</h3>
 
-                      {Object.entries(analysis.resistances)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([type, count]) => (
-                          <span
-                            key={type}
-                            className={`type-badge ${type}`}
-                          >
-                            {type.toUpperCase()}
-                          </span>
-                        ))}
+                      <div className="analysis-badges">
+                        {Object.entries(analysis.resistances)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([type, count]) => (
+                            <span
+                              key={type}
+                              className={`type-badge ${type}`}
+                            >
+                              {type.toUpperCase()}
+                            </span>
+                          ))}
+                      </div>
                     </div>
 
                     <div className="analysis-section">
                       <h3>Immunities</h3>
 
-                      {Object.entries(analysis.immunities)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([type, count]) => (
-                          <span
-                            key={type}
-                            className={`type-badge ${type}`}
-                          >
-                            {type.toUpperCase()}
-                          </span>
-                        ))}
+                      <div className="analysis-badges">
+                        {Object.entries(analysis.immunities)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([type, count]) => (
+                            <span
+                              key={type}
+                              className={`type-badge ${type}`}
+                            >
+                              {type.toUpperCase()}
+                            </span>
+                          ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -514,6 +730,14 @@ function App() {
                   <h2>
                     {pokemonData.name.toUpperCase()}
                   </h2>
+
+                  {competitiveInfo && (
+                      <div
+                        className={`competitive-badge ${competitiveInfo.legalClass}`}
+                      >
+                        {competitiveInfo.tier}
+                      </div>
+                    )}
 
                   <img
                     className="pokemon-image"
@@ -531,6 +755,28 @@ function App() {
                       </span>
                     ))}
                   </div>
+
+                  <div className="role-nature-card">
+                      <p className="role-label">
+                        Role: <span>{pokemonRole}</span>
+                      </p>
+
+                      <div className="nature-section">
+                        <p>Recommended Natures:</p>
+
+                        <div className="nature-badges">
+                          {natureRecommendations.map((nature) => (
+                            <span
+                              key={nature}
+                              className="nature-badge"
+                              title={getNatureEffect(nature)}
+                            >
+                              {nature}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
 
                   <button
                     className="add-team-button"

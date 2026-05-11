@@ -259,10 +259,11 @@ body {
 
 .type-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   max-height: 360px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 6px;
 }
 
@@ -298,7 +299,7 @@ body {
 
 .main-layout {
   display: grid;
-  grid-template-columns: 260px 1fr 320px;
+  grid-template-columns: 320px 1fr 280px;
   gap: 24px;
   align-items: start;
 }
@@ -367,6 +368,8 @@ body {
   background-color: #1e1e1e;
   padding: 14px;
   border-radius: 12px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .weakness-row {
@@ -406,6 +409,8 @@ body {
   border-radius: 12px;
   padding: 10px;
   text-align: center;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .mini-analysis-section h4 {
@@ -423,9 +428,133 @@ body {
   flex-wrap: wrap;
   justify-content: center;
   gap: 6px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .analysis-badges .type-badge {
   font-size: 11px;
   padding: 4px 8px;
+}
+
+.type-badge {
+  white-space: nowrap;
+}
+
+.competitive-badge {
+  display: inline-block;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+}
+
+.competitive-badge.legal {
+  background-color: #4caf50;
+}
+
+.competitive-badge.ou {
+  background-color: #3b82f6;
+}
+
+.competitive-badge.uu {
+  background-color: #8b5cf6;
+}
+
+.competitive-badge.ubers {
+  background-color: #ef4444;
+}
+
+.generation-filter {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.generation-filter h2 {
+  margin-bottom: 10px;
+}
+
+.generation-select {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background-color: #2a2a2a;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.role-nature-card {
+  margin-top: 14px;
+  margin-bottom: 14px;
+  background-color: #1e1e1e;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.role-label {
+  margin: 0 0 10px;
+  font-weight: bold;
+}
+
+.role-label span {
+  color: #f7d02c;
+}
+
+.nature-section p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #cccccc;
+}
+
+.nature-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.nature-badge {
+  background-color: #3b4cca;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.team-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.clear-team-button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background-color: #ff5252;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.clear-team-button:hover {
+  background-color: #ff3030;
+}
+
+.team-role-label {
+  margin-top: 2px;
+  margin-bottom: 4px;
+  color: #f7d02c;
+  font-size: 10px;
+  font-weight: bold;
+  text-align: center;
 }
