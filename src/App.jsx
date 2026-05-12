@@ -25,6 +25,48 @@ import { gameDexes } from "./gameDexes";
     "fairy",
   ];
 
+  function getMoveScore(move, pokemonTypeNames, preferredDamageClass) {
+  const badMoves = [
+    "dream-eater",
+    "hyper-beam",
+    "giga-impact",
+    "solar-beam",
+    "skull-bash",
+    "razor-wind",
+  ];
+
+  const greatMoves = [
+    "earthquake",
+    "thunderbolt",
+    "ice-beam",
+    "flamethrower",
+    "surf",
+    "psychic",
+    "shadow-ball",
+    "energy-ball",
+    "recover",
+    "roost",
+    "swords-dance",
+    "nasty-plot",
+    "calm-mind",
+    "dragon-dance",
+    "will-o-wisp",
+    "thunder-wave",
+    "toxic",
+  ];
+
+  if (badMoves.includes(move.name)) return -999;
+
+  let score = 0;
+
+  if (greatMoves.includes(move.name)) score += 100;
+  if (pokemonTypeNames.includes(move.type.name)) score += 40;
+  if (move.damage_class.name === preferredDamageClass) score += 25;
+  if (move.power) score += move.power;
+
+  return score;
+}
+
   function InfoDropdown({ title, children, defaultOpen = false }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -75,6 +117,7 @@ import { gameDexes } from "./gameDexes";
     const [evolutionChain, setEvolutionChain] = useState([]);
     const [evolutionLoading, setEvolutionLoading] = useState(false);
     const [suggestedTeammates, setSuggestedTeammates] = useState([]);
+    const [recommendedMoves, setRecommendedMoves] = useState([]);
 
     useEffect(() => {
       localStorage.setItem("selectedGameDex", selectedGameDex);
@@ -204,6 +247,76 @@ import { gameDexes } from "./gameDexes";
 
           fetchEvolutionChain();
         }, [pokemonData]);
+
+       useEffect(() => {
+        async function fetchRecommendedMoves() {
+          if (!pokemonData) {
+            setRecommendedMoves([]);
+            return;
+          }
+
+          try {
+            const moveDetails = await Promise.all(
+              pokemonData.moves.map(async (moveInfo) => {
+                const response = await fetch(moveInfo.move.url);
+                return response.json();
+              })
+            );
+
+            const attackingMoves = moveDetails.filter(
+              (move) =>
+                move.power !== null &&
+                move.power > 0 &&
+                move.damage_class.name !== "status"
+            );
+
+            const pokemonTypeNames = pokemonData.types.map(
+              (typeInfo) => typeInfo.type.name
+            );
+
+            const attack = getStatValue(pokemonData, "attack");
+            const specialAttack = getStatValue(pokemonData, "special-attack");
+
+            const preferredDamageClass =
+              attack >= specialAttack ? "physical" : "special";
+
+            const recommended = moveDetails
+            .filter((move) => {
+              if (move.damage_class.name === "status") {
+                const usefulStatusMoves = [
+                  "recover",
+                  "roost",
+                  "swords-dance",
+                  "nasty-plot",
+                  "calm-mind",
+                  "dragon-dance",
+                  "will-o-wisp",
+                  "thunder-wave",
+                  "toxic",
+                ];
+
+                return usefulStatusMoves.includes(move.name);
+              }
+
+              return move.power !== null && move.power > 0;
+            })
+            .map((move) => ({
+              ...move,
+              score: getMoveScore(move, pokemonTypeNames, preferredDamageClass),
+            }))
+            .filter((move) => move.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 4);
+
+            setRecommendedMoves(recommended);
+          } catch (error) {
+            console.error("Move recommendation error:", error);
+            setRecommendedMoves([]);
+          }
+        }
+
+        fetchRecommendedMoves();
+      }, [pokemonData]);
 
         useEffect(() => {
           async function fetchSuggestedTeammates() {
@@ -710,6 +823,15 @@ import { gameDexes } from "./gameDexes";
         return natureEffects[nature] || "Nature effect unknown";
       }
 
+      function formatMoveName(moveName) {
+        return moveName
+          .split("-")
+          .map((word) =>
+            word.charAt(0).toUpperCase() + word.slice(1)
+          )
+          .join(" ");
+      }
+
       function formatAbilityName(abilityName) {
         return abilityName
           .split("-")
@@ -1054,7 +1176,7 @@ import { gameDexes } from "./gameDexes";
               </div>
 
             {team.length > 0 && (
-              <InfoDropdown title="Team Analysis" defaultOpen={true}>
+              <InfoDropdown title="Team Analysis">
                 <div className="team-analysis">
 
                   <div className="weakness-score-card">
@@ -1237,7 +1359,7 @@ import { gameDexes } from "./gameDexes";
                       </div>
                     </div>
 
-                    <InfoDropdown title="Abilities" defaultOpen={true}>
+                    <InfoDropdown title="Abilities">
                       <div className="ability-list">
                         {pokemonData.abilities.map((abilityInfo) => (
                         <div
@@ -1297,6 +1419,38 @@ import { gameDexes } from "./gameDexes";
                       ) : (
                         <p className="evolution-loading">No evolution chain found.</p>
                       )}
+                    </InfoDropdown>
+
+                    <InfoDropdown title="Recommended Moves">
+                      <div className="recommended-moves-list">
+                        {recommendedMoves.length > 0 ? (
+                          recommendedMoves.map((move) => (
+                            <div
+                              key={move.name}
+                              className="recommended-move-card"
+                            >
+                              <div className="recommended-move-top">
+                                <span className="recommended-move-name">
+                                  {formatMoveName(move.name)}
+                                </span>
+
+                                <span
+                                  className={`type-badge ${move.type.name}`}
+                                >
+                                  {move.type.name.toUpperCase()}
+                                </span>
+                              </div>
+
+                              <div className="recommended-move-details">
+                                <span>{move.damage_class.name}</span>
+                                <span>Power: {move.power || "—"}</span>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p>No move recommendations found.</p>
+                        )}
+                      </div>
                     </InfoDropdown>
 
                   <InfoDropdown title="Base Stats">

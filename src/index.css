@@ -633,13 +633,14 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
+  padding-top: 8px;
 }
 
 .ability-badge {
   background-color: #3b4cca;
   color: white;
-  padding: 6px 10px;
+  padding: 8px 14px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: bold;
@@ -1025,4 +1026,38 @@ body {
 
 .saved-teams-list {
   margin-top: 0;
+}
+
+.recommended-moves-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recommended-move-card {
+  background-color: #2a2a2a;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: left;
+}
+
+.recommended-move-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.recommended-move-name {
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.recommended-move-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #cccccc;
+  text-transform: capitalize;
 }
