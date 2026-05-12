@@ -25,6 +25,30 @@ import { gameDexes } from "./gameDexes";
     "fairy",
   ];
 
+  function InfoDropdown({ title, children, defaultOpen = false }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="info-dropdown">
+      <button
+        className="info-dropdown-header"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span>{title}</span>
+        <span className="info-dropdown-icon">
+          {isOpen ? "−" : "+"}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="info-dropdown-content">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
   function App() {
     const [pokemonName, setPokemonName] = useState("");
     const [pokemonData, setPokemonData] = useState(null);
@@ -39,10 +63,42 @@ import { gameDexes } from "./gameDexes";
     const [typePokemon, setTypePokemon] = useState([]);
     const [typeLoading, setTypeLoading] = useState(false);
     const [typeError, setTypeError] = useState("");
+    const [showCompetitiveBadges, setShowCompetitiveBadges] = useState(() => {
+      return localStorage.getItem("showCompetitiveBadges") !== "false";
+    });
+    const [abilityDescriptions, setAbilityDescriptions] = useState({});
+    const [teamName, setTeamName] = useState("");
+    const [savedTeams, setSavedTeams] = useState(() => {
+      return JSON.parse(localStorage.getItem("savedTeams")) || [];
+    });
+    const [importText, setImportText] = useState("");
+    const [evolutionChain, setEvolutionChain] = useState([]);
+    const [evolutionLoading, setEvolutionLoading] = useState(false);
+    const [suggestedTeammates, setSuggestedTeammates] = useState([]);
 
     useEffect(() => {
       localStorage.setItem("selectedGameDex", selectedGameDex);
     }, [selectedGameDex]);
+
+    useEffect(() => {
+      localStorage.setItem("showCompetitiveBadges", showCompetitiveBadges);
+    }, [showCompetitiveBadges]);
+
+    useEffect(() => {
+        const savedTeam = localStorage.getItem("savedPokemonTeam");
+
+        if (savedTeam) {
+          setTeam(JSON.parse(savedTeam));
+        }
+      }, []);
+
+      useEffect(() => {
+        localStorage.setItem("savedPokemonTeam", JSON.stringify(team));
+      }, [team]);
+
+      useEffect(() => {
+        localStorage.setItem("savedTeams", JSON.stringify(savedTeams));
+      }, [savedTeams]);
 
     useEffect(() => {
       async function fetchPokemonList() {
@@ -66,6 +122,161 @@ import { gameDexes } from "./gameDexes";
 
       fetchPokemonList();
     }, []);
+
+    useEffect(() => {
+      async function fetchAbilityDescriptions() {
+        if (!pokemonData) return;
+
+        const descriptions = {};
+
+        await Promise.all(
+          pokemonData.abilities.map(async (abilityInfo) => {
+            try {
+              const response = await fetch(
+                abilityInfo.ability.url
+              );
+
+              const data = await response.json();
+
+              const englishEntry = data.effect_entries.find(
+                (entry) => entry.language.name === "en"
+              );
+
+              descriptions[abilityInfo.ability.name] =
+                englishEntry?.short_effect ||
+                "No description available.";
+            } catch {
+              descriptions[abilityInfo.ability.name] =
+                "Could not load ability description.";
+            }
+          })
+        );
+
+        setAbilityDescriptions(descriptions);
+      }
+
+      fetchAbilityDescriptions();
+        }, [pokemonData]);
+
+        useEffect(() => {
+          async function fetchEvolutionChain() {
+            if (!pokemonData) return;
+
+            try {
+              setEvolutionLoading(true);
+              setEvolutionChain([]);
+
+              const speciesResponse = await fetch(pokemonData.species.url);
+              const speciesData = await speciesResponse.json();
+
+              const evolutionResponse = await fetch(speciesData.evolution_chain.url);
+              const evolutionData = await evolutionResponse.json();
+
+              const chain = [];
+
+              function walkEvolutionTree(node) {
+                const pokemonId = Number(
+                  node.species.url
+                    .split("/")
+                    .filter(Boolean)
+                    .pop()
+                );
+
+                chain.push({
+                  name: node.species.name,
+                  id: pokemonId,
+                  sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`,
+                });
+
+                node.evolves_to.forEach((nextEvolution) => {
+                  walkEvolutionTree(nextEvolution);
+                });
+              }
+
+              walkEvolutionTree(evolutionData.chain);
+              setEvolutionChain(chain);
+            } catch (error) {
+              setEvolutionChain([]);
+            } finally {
+              setEvolutionLoading(false);
+            }
+          }
+
+          fetchEvolutionChain();
+        }, [pokemonData]);
+
+        useEffect(() => {
+          async function fetchSuggestedTeammates() {
+            if (team.length === 0 || pokemonList.length === 0) {
+              setSuggestedTeammates([]);
+              return;
+            }
+
+            const currentAnalysis = analyzeTeam();
+
+            const majorWeaknesses = Object.entries(currentAnalysis.weaknesses)
+              .filter(([type, count]) => count >= 2)
+              .map(([type]) => type);
+
+            if (majorWeaknesses.length === 0) {
+              setSuggestedTeammates([]);
+              return;
+            }
+
+            const currentTeamIds = team.map((pokemon) => pokemon.id);
+
+            const possiblePokemon = pokemonList
+              .filter((pokemon) => {
+                if (currentTeamIds.includes(pokemon.id)) return false;
+                return isPokemonInSelectedGameDex(pokemon.id);
+              })
+              .slice(0, 200);
+
+            const detailedPokemon = await Promise.all(
+              possiblePokemon.map(async (pokemon) => {
+                const response = await fetch(
+                  `https://pokeapi.co/api/v2/pokemon/${pokemon.name}`
+                );
+
+                return response.json();
+              })
+            );
+
+            const rankedSuggestions = detailedPokemon
+              .map((pokemon) => {
+                const covers = [];
+
+                pokemon.types.forEach((typeInfo) => {
+                  const typeName = typeInfo.type.name;
+                  const typeData = typeChart[typeName];
+
+                  if (!typeData) return;
+
+                  majorWeaknesses.forEach((weakness) => {
+                    if (
+                      typeData.resists.includes(weakness) ||
+                      typeData.immuneTo.includes(weakness)
+                    ) {
+                      covers.push(weakness);
+                    }
+                  });
+                });
+
+                return {
+                  ...pokemon,
+                  coverageScore: [...new Set(covers)].length,
+                  covers: [...new Set(covers)],
+                };
+              })
+              .filter((pokemon) => pokemon.coverageScore > 0)
+              .sort((a, b) => b.coverageScore - a.coverageScore)
+              .slice(0, 6);
+
+            setSuggestedTeammates(rankedSuggestions);
+          }
+
+          fetchSuggestedTeammates();
+        }, [team, selectedGameDex, pokemonList]);
 
     async function searchPokemon(nameToSearch = pokemonName) {
       try {
@@ -209,6 +420,73 @@ import { gameDexes } from "./gameDexes";
           setError("");
         }
 
+        function saveNamedTeam() {
+          if (team.length === 0) {
+            setError("Add Pokémon before saving a team.");
+            return;
+          }
+
+          if (!teamName.trim()) {
+            setError("Give your team a name before saving.");
+            return;
+          }
+
+          const newSavedTeam = {
+            id: Date.now(),
+            name: teamName.trim(),
+            pokemon: team,
+          };
+
+          setSavedTeams([...savedTeams, newSavedTeam]);
+          setTeamName("");
+          setError("");
+        }
+
+        function loadSavedTeam(savedTeam) {
+          setTeam(savedTeam.pokemon);
+          setError("");
+        }
+
+        function deleteSavedTeam(teamId) {
+          setSavedTeams(savedTeams.filter((savedTeam) => savedTeam.id !== teamId));
+        }
+
+        function exportTeam() {
+        const teamNames = team.map((pokemon) => pokemon.name).join(", ");
+        setImportText(teamNames);
+      }
+
+      async function importTeam() {
+        try {
+          setError("");
+
+          const names = importText
+            .split(",")
+            .map((name) => name.trim().toLowerCase())
+            .filter(Boolean)
+            .slice(0, 6);
+
+          const importedPokemon = await Promise.all(
+            names.map(async (name) => {
+              const response = await fetch(
+                `https://pokeapi.co/api/v2/pokemon/${name}`
+              );
+
+              if (!response.ok) {
+                throw new Error(`Could not import ${name}`);
+              }
+
+              return response.json();
+            })
+          );
+
+          setTeam(importedPokemon);
+          setImportText("");
+        } catch (error) {
+          setError("Could not import team. Check names and separate them with commas.");
+        }
+      }
+
         function analyzeTeam() {
           const weaknesses = {};
           const resistances = {};
@@ -298,8 +576,27 @@ import { gameDexes } from "./gameDexes";
           };
         }
 
+        function getWeaknessOverlapScore() {
+        const overlapTypes = Object.entries(analysis.weaknesses).filter(
+          ([type, count]) => count >= 2
+        );
+
+        return overlapTypes.reduce((total, [type, count]) => {
+          return total + count;
+        }, 0);
+      }
+
+        function getWeaknessOverlapLevel(score) {
+          if (score >= 8) return "High Risk";
+          if (score >= 4) return "Moderate Risk";
+          if (score >= 1) return "Low Risk";
+          return "Balanced";
+        }
+
         const analysis = analyzeTeam();
         const pokemonAnalysis = analyzePokemon(pokemonData);
+        const weaknessOverlapScore = getWeaknessOverlapScore();
+        const weaknessOverlapLevel = getWeaknessOverlapLevel(weaknessOverlapScore);
 
         const competitiveInfo = pokemonData
           ? getCompetitiveInfo(pokemonData.name)
@@ -411,6 +708,13 @@ import { gameDexes } from "./gameDexes";
         };
 
         return natureEffects[nature] || "Nature effect unknown";
+      }
+
+      function formatAbilityName(abilityName) {
+        return abilityName
+          .split("-")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
       }
 
     return (
@@ -602,6 +906,65 @@ import { gameDexes } from "./gameDexes";
                   )}
                 </div>
 
+                <div className="team-tools">
+                  <label className="badge-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showCompetitiveBadges}
+                      onChange={() =>
+                        setShowCompetitiveBadges(!showCompetitiveBadges)
+                      }
+                    />
+                    Show competitive badges
+                  </label>
+
+                  <div className="export-import-tools">
+                    <button
+                      className="team-tool-button"
+                      onClick={exportTeam}
+                      disabled={team.length === 0}
+                    >
+                      Export Team
+                    </button>
+
+                    <button
+                      className="team-tool-button"
+                      onClick={importTeam}
+                    >
+                      Import Team
+                    </button>
+                  </div>
+
+                  <textarea
+                    className="team-import-box"
+                    placeholder="Example: infernape, garchomp, starmie"
+                    value={importText}
+                    onChange={(event) => setImportText(event.target.value)}
+                  />
+                </div>
+
+                    <div className="saved-team-tools">
+                      <div className="team-name-group">
+                        <label htmlFor="team-name-input">Name your team</label>
+
+                        <input
+                          id="team-name-input"
+                          className="team-name-input"
+                          type="text"
+                          placeholder="Enter a team name..."
+                          value={teamName}
+                          onChange={(event) => setTeamName(event.target.value)}
+                        />
+                      </div>
+
+                      <button
+                        className="team-tool-button save-team-button"
+                        onClick={saveNamedTeam}
+                      >
+                        Save Team
+                      </button>
+                    </div>
+
                 <div className="team-grid">
                   {team.map((pokemon) => (
                     <div
@@ -643,11 +1006,68 @@ import { gameDexes } from "./gameDexes";
                     </div>
                   ))}
                 </div>
+
+                {savedTeams.length > 0 && (
+                  <InfoDropdown title="Saved Teams">
+                    <div className="saved-teams-list">
+
+                      {savedTeams.map((savedTeam) => (
+                        <div
+                          key={savedTeam.id}
+                          className="saved-team-card"
+                        >
+                          <div className="saved-team-info">
+                            <strong>{savedTeam.name}</strong>
+
+                            <div className="saved-team-sprites">
+                              {savedTeam.pokemon.map((pokemon) => (
+                                <img
+                                  key={pokemon.id}
+                                  src={pokemon.sprites.front_default}
+                                  alt={pokemon.name}
+                                  title={pokemon.name}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="saved-team-buttons">
+                            <button
+                              className="team-tool-button"
+                              onClick={() => loadSavedTeam(savedTeam)}
+                            >
+                              Load
+                            </button>
+
+                            <button
+                              className="delete-saved-team-button"
+                              onClick={() => deleteSavedTeam(savedTeam.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </InfoDropdown>
+                )}
               </div>
 
-              {team.length > 0 && (
+            {team.length > 0 && (
+              <InfoDropdown title="Team Analysis" defaultOpen={true}>
                 <div className="team-analysis">
-                  <h2>Team Analysis</h2>
+
+                  <div className="weakness-score-card">
+                    <h3>Weakness Overlap Score</h3>
+
+                    <p className="weakness-score-number">
+                      {weaknessOverlapScore}
+                    </p>
+
+                    <p className={`weakness-score-label ${weaknessOverlapLevel.toLowerCase().replace(" ", "-")}`}>
+                      {weaknessOverlapLevel}
+                    </p>
+                  </div>
 
                   <div className="analysis-grid">
                     <div className="analysis-section">
@@ -718,8 +1138,35 @@ import { gameDexes } from "./gameDexes";
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                        {suggestedTeammates.length > 0 && (
+                          <div className="suggested-teammates">
+                            <h3>Suggested Teammates</h3>
+
+                            <div className="suggested-teammate-grid">
+                              {suggestedTeammates.map((pokemon) => (
+                                <button
+                                  key={pokemon.id}
+                                  className="suggested-teammate-card"
+                                  onClick={() => searchPokemon(pokemon.name)}
+                                >
+                                  <img
+                                    src={pokemon.sprites.front_default}
+                                    alt={pokemon.name}
+                                  />
+
+                                  <span>{pokemon.name}</span>
+
+                                  <small>
+                                    Covers: {pokemon.covers.join(", ")}
+                                  </small>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        </div>
+                      </InfoDropdown>
+                    )}
             </div>
 
             {/* RIGHT PANEL */}
@@ -731,7 +1178,7 @@ import { gameDexes } from "./gameDexes";
                     {pokemonData.name.toUpperCase()}
                   </h2>
 
-                  {competitiveInfo && (
+                    {showCompetitiveBadges && competitiveInfo && (
                       <div
                         className={`competitive-badge ${competitiveInfo.legalClass}`}
                       >
@@ -756,6 +1203,13 @@ import { gameDexes } from "./gameDexes";
                     ))}
                   </div>
 
+                  <button
+                    className="add-team-button"
+                    onClick={addToTeam}
+                  >
+                    Add to Team
+                  </button>
+
                   <div className="role-nature-card">
                       <p className="role-label">
                         Role: <span>{pokemonRole}</span>
@@ -766,116 +1220,176 @@ import { gameDexes } from "./gameDexes";
 
                         <div className="nature-badges">
                           {natureRecommendations.map((nature) => (
-                            <span
+                           <div
                               key={nature}
-                              className="nature-badge"
-                              title={getNatureEffect(nature)}
+                              className="ability-tooltip-wrapper"
                             >
-                              {nature}
-                            </span>
+                              <span className="nature-badge">
+                                {nature}
+                              </span>
+
+                              <div className="ability-tooltip">
+                                {getNatureEffect(nature)}
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
                     </div>
 
-                  <button
-                    className="add-team-button"
-                    onClick={addToTeam}
-                  >
-                    Add to Team
-                  </button>
+                    <InfoDropdown title="Abilities" defaultOpen={true}>
+                      <div className="ability-list">
+                        {pokemonData.abilities.map((abilityInfo) => (
+                        <div
+                          key={abilityInfo.ability.name}
+                          className="ability-tooltip-wrapper"
+                        >
+                          <span
+                            className={
+                              abilityInfo.is_hidden
+                                ? "ability-badge hidden-ability"
+                                : "ability-badge"
+                            }
+                          >
+                            {formatAbilityName(abilityInfo.ability.name)}
+                            {abilityInfo.is_hidden}
+                          </span>
 
-                  <div className="stats-container">
-                    <h3>Base Stats</h3>
-
-                    {pokemonData.stats.map((statInfo) => (
-                      <p
-                        key={statInfo.stat.name}
-                        className="stat"
-                      >
-                        {statInfo.stat.name.toUpperCase()}:{" "}
-                        {statInfo.base_stat}
-                      </p>
-                    ))}
-                  </div>
-
-                  <div className="pokemon-analysis">
-                    <h3>Analysis</h3>
-
-                    <div className="pokemon-analysis-grid">
-                      <div className="mini-analysis-section">
-                        <h4>Strong Against</h4>
-
-                        {Object.entries(pokemonAnalysis.strongAgainst).length > 0 ? (
-                          <div className="analysis-badges">
-                            {Object.entries(pokemonAnalysis.strongAgainst)
-                              .sort((a, b) => b[1] - a[1])
-                              .map(([type]) => (
-                                <span key={type} className={`type-badge ${type}`}>
-                                  {type.toUpperCase()}
-                                </span>
-                              ))}
+                          <div className="ability-tooltip">
+                            {abilityDescriptions[abilityInfo.ability.name] ||
+                              "Loading ability..."}
                           </div>
-                        ) : (
-                          <p className="analysis-row">None</p>
-                        )}
+                        </div>
+                        ))}
                       </div>
+                    </InfoDropdown>
 
-                      <div className="mini-analysis-section">
-                        <h4>Weaknesses</h4>
+                    <InfoDropdown title="Evolution Chain">
+                      {evolutionLoading ? (
+                        <p className="evolution-loading">Loading evolution chain...</p>
+                      ) : evolutionChain.length > 0 ? (
+                        <div className="evolution-list">
+                          {evolutionChain.map((evolution, index) => (
+                            <div
+                              key={evolution.name}
+                              className="evolution-item"
+                            >
+                              <button
+                                className={`evolution-pokemon ${
+                                  pokemonData.name === evolution.name ? "current-evolution" : ""
+                                }`}
+                                onClick={() => searchPokemon(evolution.name)}
+                              >
+                                <img
+                                  src={evolution.sprite}
+                                  alt={evolution.name}
+                                />
 
-                        {Object.entries(pokemonAnalysis.weaknesses).length > 0 ? (
-                          <div className="analysis-badges">
-                            {Object.entries(pokemonAnalysis.weaknesses)
-                              .sort((a, b) => b[1] - a[1])
-                              .map(([type]) => (
-                                <span key={type} className={`type-badge ${type}`}>
-                                  {type.toUpperCase()}
-                                </span>
-                              ))}
-                          </div>
-                        ) : (
-                          <p className="analysis-row">None</p>
-                        )}
-                      </div>
+                                <span>{evolution.name}</span>
+                              </button>
 
-                      <div className="mini-analysis-section">
-                        <h4>Resistances</h4>
+                              {index < evolutionChain.length - 1 && (
+                                <span className="evolution-arrow">→</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="evolution-loading">No evolution chain found.</p>
+                      )}
+                    </InfoDropdown>
 
-                        {Object.entries(pokemonAnalysis.resistances).length > 0 ? (
-                          <div className="analysis-badges">
-                            {Object.entries(pokemonAnalysis.resistances)
-                              .sort((a, b) => b[1] - a[1])
-                              .map(([type]) => (
-                                <span key={type} className={`type-badge ${type}`}>
-                                  {type.toUpperCase()}
-                                </span>
-                              ))}
-                          </div>
-                        ) : (
-                          <p className="analysis-row">None</p>
-                        )}
-                      </div>
+                  <InfoDropdown title="Base Stats">
+                    <div className="stats-container">
+                      {pokemonData.stats.map((statInfo) => (
+                        <p
+                          key={statInfo.stat.name}
+                          className="stat"
+                        >
+                          {statInfo.stat.name.toUpperCase()}:{" "}
+                          {statInfo.base_stat}
+                        </p>
+                      ))}
+                    </div>
+                  </InfoDropdown>
 
-                      <div className="mini-analysis-section">
-                        <h4>Immunities</h4>
+                  <InfoDropdown title="Analysis">
+                    <div className="pokemon-analysis">
+                      <div className="pokemon-analysis-grid">
+                        <div className="mini-analysis-section">
+                          <h4>Strong Against</h4>
 
-                        {Object.entries(pokemonAnalysis.immunities).length > 0 ? (
-                          <div className="analysis-badges">
-                            {Object.entries(pokemonAnalysis.immunities)
-                              .sort((a, b) => b[1] - a[1])
-                              .map(([type]) => (
-                                <span key={type} className={`type-badge ${type}`}>
-                                  {type.toUpperCase()}
-                                </span>
-                              ))}
-                          </div>
-                        ) : (
-                          <p className="analysis-row">None</p>
-                        )}
+                          {Object.entries(pokemonAnalysis.strongAgainst).length > 0 ? (
+                            <div className="analysis-badges">
+                              {Object.entries(pokemonAnalysis.strongAgainst)
+                                .sort((a, b) => b[1] - a[1])
+                                .map(([type]) => (
+                                  <span key={type} className={`type-badge ${type}`}>
+                                    {type.toUpperCase()}
+                                  </span>
+                                ))}
+                            </div>
+                          ) : (
+                            <p className="analysis-row">None</p>
+                          )}
+                        </div>
+
+                        <div className="mini-analysis-section">
+                          <h4>Weaknesses</h4>
+
+                          {Object.entries(pokemonAnalysis.weaknesses).length > 0 ? (
+                            <div className="analysis-badges">
+                              {Object.entries(pokemonAnalysis.weaknesses)
+                                .sort((a, b) => b[1] - a[1])
+                                .map(([type]) => (
+                                  <span key={type} className={`type-badge ${type}`}>
+                                    {type.toUpperCase()}
+                                  </span>
+                                ))}
+                            </div>
+                          ) : (
+                            <p className="analysis-row">None</p>
+                          )}
+                        </div>
+
+                        <div className="mini-analysis-section">
+                          <h4>Resistances</h4>
+
+                          {Object.entries(pokemonAnalysis.resistances).length > 0 ? (
+                            <div className="analysis-badges">
+                              {Object.entries(pokemonAnalysis.resistances)
+                                .sort((a, b) => b[1] - a[1])
+                                .map(([type]) => (
+                                  <span key={type} className={`type-badge ${type}`}>
+                                    {type.toUpperCase()}
+                                  </span>
+                                ))}
+                            </div>
+                          ) : (
+                            <p className="analysis-row">None</p>
+                          )}
+                        </div>
+
+                        <div className="mini-analysis-section">
+                          <h4>Immunities</h4>
+
+                          {Object.entries(pokemonAnalysis.immunities).length > 0 ? (
+                            <div className="analysis-badges">
+                              {Object.entries(pokemonAnalysis.immunities)
+                                .sort((a, b) => b[1] - a[1])
+                                .map(([type]) => (
+                                  <span key={type} className={`type-badge ${type}`}>
+                                    {type.toUpperCase()}
+                                  </span>
+                                ))}
+                            </div>
+                          ) : (
+                            <p className="analysis-row">None</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </InfoDropdown>
                 </div>
               ) : (
                 <div className="pokemon-info empty-details">

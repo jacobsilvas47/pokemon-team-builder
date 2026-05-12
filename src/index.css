@@ -558,3 +558,471 @@ body {
   font-weight: bold;
   text-align: center;
 }
+
+.team-tools {
+  margin-bottom: 16px;
+  background-color: #252525;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.badge-toggle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #cccccc;
+}
+
+.export-import-tools {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.team-tool-button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background-color: #3b4cca;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.team-tool-button:hover {
+  background-color: #2f3db8;
+}
+
+.team-tool-button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+}
+
+.team-import-box {
+  width: 100%;
+  min-height: 60px;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  resize: vertical;
+  background-color: #1e1e1e;
+  color: white;
+  font-family: inherit;
+}
+
+.abilities-card {
+  margin-top: 14px;
+  margin-bottom: 14px;
+  background-color: #1e1e1e;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.abilities-card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.ability-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ability-badge {
+  background-color: #3b4cca;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.hidden-ability {
+  background-color: #f7d02c;
+  color: black;
+}
+
+.ability-tooltip-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.ability-tooltip {
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  background-color: #111;
+  color: white;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.ability-tooltip-wrapper:hover .ability-tooltip {
+  opacity: 1;
+}
+
+.saved-team-tools {
+  background-color: #1e1e1e;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.team-name-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.team-name-group label {
+  font-size: 14px;
+  color: #e0e0e0;
+  font-weight: 600;
+}
+
+.team-name-input {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 16px;
+  border: 1px solid #444;
+  border-radius: 10px;
+  background-color: #2a2a2a;
+  color: white;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.team-name-input:focus {
+  border-color: #5b6dff;
+}
+
+.save-team-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .saved-team-tools {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .save-team-button {
+    width: 100%;
+  }
+}
+
+.saved-teams-list {
+  margin-top: 16px;
+  text-align: left;
+}
+
+.saved-teams-list h3 {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.saved-team-card {
+  background-color: #1e1e1e;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.saved-team-card strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #f7d02c;
+}
+
+.saved-team-card p {
+  margin: 0 0 10px;
+  color: #cccccc;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.saved-team-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.delete-saved-team-button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background-color: #ff5252;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.delete-saved-team-button:hover {
+  background-color: #ff3030;
+}
+
+.saved-team-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background-color: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.saved-team-info {
+  flex: 1;
+}
+
+.saved-team-sprites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.saved-team-sprites img {
+  width: 36px;
+  height: 36px;
+  image-rendering: pixelated;
+}
+
+.saved-team-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.evolution-card {
+  margin-top: 14px;
+  margin-bottom: 14px;
+  background-color: #1e1e1e;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.evolution-card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.evolution-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  align-items: center;
+}
+
+.evolution-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.evolution-pokemon {
+  border: none;
+  border-radius: 12px;
+  background-color: #2a2a2a;
+  color: white;
+  padding: 8px;
+  cursor: pointer;
+  text-transform: capitalize;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 72px;
+}
+
+.evolution-pokemon:hover {
+  background-color: #3a3a3a;
+  transform: translateY(-2px);
+}
+
+.evolution-pokemon img {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+
+.current-evolution {
+  outline: 2px solid #f7d02c;
+}
+
+.evolution-arrow {
+  color: #f7d02c;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.evolution-loading {
+  color: #cccccc;
+  font-size: 13px;
+  margin: 0;
+}
+
+.weakness-score-card {
+  background-color: #1e1e1e;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.weakness-score-card h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.weakness-score-number {
+  font-size: 32px;
+  font-weight: bold;
+  margin: 0;
+  color: #f7d02c;
+}
+
+.weakness-score-label {
+  margin: 6px 0 0;
+  font-weight: bold;
+}
+
+.weakness-score-label.balanced {
+  color: #7ac74c;
+}
+
+.weakness-score-label.low-risk {
+  color: #96d9d6;
+}
+
+.weakness-score-label.moderate-risk {
+  color: #f7d02c;
+}
+
+.weakness-score-label.high-risk {
+  color: #ff6b6b;
+}
+
+.suggested-teammates {
+  margin-top: 20px;
+  background-color: #1e1e1e;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.suggested-teammates h3 {
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.suggested-teammate-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.suggested-teammate-card {
+  border: none;
+  border-radius: 12px;
+  background-color: #2a2a2a;
+  color: white;
+  padding: 10px;
+  cursor: pointer;
+  text-transform: capitalize;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.suggested-teammate-card:hover {
+  background-color: #3a3a3a;
+  transform: translateY(-2px);
+}
+
+.suggested-teammate-card img {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+
+.suggested-teammate-card small {
+  color: #cccccc;
+  font-size: 10px;
+}
+
+.info-dropdown {
+  margin-top: 12px;
+  background-color: #1e1e1e;
+  border-radius: 12px;
+  overflow: visible;
+}
+
+.info-dropdown-content {
+  overflow: visible;
+}
+
+.info-dropdown-header {
+  width: 100%;
+  border: none;
+  background-color: #1e1e1e;
+  color: white;
+  padding: 12px 14px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-dropdown-header:hover {
+  background-color: #2a2a2a;
+}
+
+.info-dropdown-icon {
+  color: #f7d02c;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.info-dropdown-content {
+  padding: 0 12px 12px;
+}
+
+.team-analysis {
+  margin-top: 0;
+}
+
+.saved-teams-list {
+  margin-top: 0;
+}
