@@ -25,7 +25,7 @@ import { gameDexes } from "./gameDexes";
     "fairy",
   ];
 
-  function getMoveScore(move, pokemonTypeNames, preferredDamageClass) {
+  function getMoveScore(move, pokemonTypeNames, preferredDamageClass, offClass) {
   const badMoves = [
     "dream-eater",
     "hyper-beam",
@@ -33,6 +33,8 @@ import { gameDexes } from "./gameDexes";
     "solar-beam",
     "skull-bash",
     "razor-wind",
+    "fly",
+    "dragon-rush",
   ];
 
   const greatMoves = [
@@ -59,10 +61,21 @@ import { gameDexes } from "./gameDexes";
 
   let score = 0;
 
-  if (greatMoves.includes(move.name)) score += 100;
-  if (pokemonTypeNames.includes(move.type.name)) score += 40;
-  if (move.damage_class.name === preferredDamageClass) score += 25;
-  if (move.power) score += move.power;
+  const isStatus = move.damage_class.name === "status";
+  const isPreferredClass = move.damage_class.name === preferredDamageClass;
+  const isOffClass = move.damage_class.name === offClass;
+
+  if (greatMoves.includes(move.name)) score += 80;
+
+  if (pokemonTypeNames.includes(move.type.name)) score += 50;
+
+  if (!isStatus && isPreferredClass) score += 75;
+
+  if (!isStatus && isOffClass) score -= 90;
+
+  if (move.power && !isStatus) {
+    score += move.power * 0.7;
+  }
 
   return score;
 }
@@ -117,7 +130,7 @@ import { gameDexes } from "./gameDexes";
     const [evolutionChain, setEvolutionChain] = useState([]);
     const [evolutionLoading, setEvolutionLoading] = useState(false);
     const [suggestedTeammates, setSuggestedTeammates] = useState([]);
-    const [recommendedMoves, setRecommendedMoves] = useState([]);
+    const [topLearnableMoves, setTopLearnableMoves] = useState([]);
 
     useEffect(() => {
       localStorage.setItem("selectedGameDex", selectedGameDex);
@@ -248,75 +261,101 @@ import { gameDexes } from "./gameDexes";
           fetchEvolutionChain();
         }, [pokemonData]);
 
-       useEffect(() => {
-        async function fetchRecommendedMoves() {
-          if (!pokemonData) {
-            setRecommendedMoves([]);
-            return;
-          }
-
-          try {
-            const moveDetails = await Promise.all(
-              pokemonData.moves.map(async (moveInfo) => {
-                const response = await fetch(moveInfo.move.url);
-                return response.json();
-              })
-            );
-
-            const attackingMoves = moveDetails.filter(
-              (move) =>
-                move.power !== null &&
-                move.power > 0 &&
-                move.damage_class.name !== "status"
-            );
-
-            const pokemonTypeNames = pokemonData.types.map(
-              (typeInfo) => typeInfo.type.name
-            );
-
-            const attack = getStatValue(pokemonData, "attack");
-            const specialAttack = getStatValue(pokemonData, "special-attack");
-
-            const preferredDamageClass =
-              attack >= specialAttack ? "physical" : "special";
-
-            const recommended = moveDetails
-            .filter((move) => {
-              if (move.damage_class.name === "status") {
-                const usefulStatusMoves = [
-                  "recover",
-                  "roost",
-                  "swords-dance",
-                  "nasty-plot",
-                  "calm-mind",
-                  "dragon-dance",
-                  "will-o-wisp",
-                  "thunder-wave",
-                  "toxic",
-                ];
-
-                return usefulStatusMoves.includes(move.name);
+          useEffect(() => {
+            async function fetchTopLearnableMoves() {
+              if (!pokemonData) {
+                setTopLearnableMoves([]);
+                return;
               }
 
-              return move.power !== null && move.power > 0;
-            })
-            .map((move) => ({
-              ...move,
-              score: getMoveScore(move, pokemonTypeNames, preferredDamageClass),
-            }))
-            .filter((move) => move.score > 0)
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 4);
+              try {
+                const moveDetails = await Promise.all(
+                  pokemonData.moves.map(async (moveInfo) => {
+                    const response = await fetch(moveInfo.move.url);
+                    return response.json();
+                  })
+                );
 
-            setRecommendedMoves(recommended);
-          } catch (error) {
-            console.error("Move recommendation error:", error);
-            setRecommendedMoves([]);
-          }
-        }
+                const pokemonTypeNames = pokemonData.types.map(
+                  (typeInfo) => typeInfo.type.name
+                );
 
-        fetchRecommendedMoves();
-      }, [pokemonData]);
+                const attack = getStatValue(pokemonData, "attack");
+                const specialAttack = getStatValue(pokemonData, "special-attack");
+
+                const preferredDamageClass =
+                  attack >= specialAttack ? "physical" : "special";
+
+                const coverageTypePriority = [
+                  "ground",
+                  "ice",
+                  "electric",
+                  "fire",
+                  "fighting",
+                  "rock",
+                  "dark",
+                  "ghost",
+                  "steel",
+                  "water",
+                  "grass",
+                  "psychic",
+                  "poison",
+                  "bug",
+                  "flying",
+                  "dragon",
+                  "fairy",
+                  "normal",
+                ];
+
+                const badStandaloneMoves = [
+                  "dream-eater",
+                  "hyper-beam",
+                  "giga-impact",
+                  "solar-beam",
+                  "skull-bash",
+                  "razor-wind",
+                  "focus-punch",
+                  "fly",
+                  "dig",
+                ];
+
+                const usableMoves = moveDetails
+                  .filter(
+                    (move) =>
+                      move.power !== null &&
+                      move.power > 0 &&
+                      move.damage_class.name !== "status" &&
+                      move.accuracy !== null &&
+                      move.accuracy >= 85 &&
+                      !badStandaloneMoves.includes(move.name)
+                  )
+                  .map((move) => ({
+                    ...move,
+                    coverageScore:
+                      move.power +
+                      (move.accuracy || 100) +
+                      (pokemonTypeNames.includes(move.type.name) ? 30 : 0) +
+                      (move.damage_class.name === preferredDamageClass ? 80 : -80),
+                      }));
+
+                const topMoves = coverageTypePriority
+                  .map((type) => {
+                    return usableMoves
+                      .filter((move) => move.type.name === type)
+                      .sort((a, b) => b.coverageScore - a.coverageScore)[0];
+                  })
+                  .filter(Boolean)
+                  .slice(0, 12);
+
+                setTopLearnableMoves(topMoves);
+              } catch (error) {
+                console.error("Top learnable moves error:", error);
+                setTopLearnableMoves([]);
+              }
+            }
+
+            fetchTopLearnableMoves();
+          }, [pokemonData]);
 
         useEffect(() => {
           async function fetchSuggestedTeammates() {
@@ -1421,10 +1460,10 @@ import { gameDexes } from "./gameDexes";
                       )}
                     </InfoDropdown>
 
-                    <InfoDropdown title="Recommended Moves">
+                    <InfoDropdown title="Top Learnable Moves">
                       <div className="recommended-moves-list">
-                        {recommendedMoves.length > 0 ? (
-                          recommendedMoves.map((move) => (
+                        {topLearnableMoves.length > 0 ? (
+                          topLearnableMoves.map((move) => (
                             <div
                               key={move.name}
                               className="recommended-move-card"
@@ -1434,21 +1473,19 @@ import { gameDexes } from "./gameDexes";
                                   {formatMoveName(move.name)}
                                 </span>
 
-                                <span
-                                  className={`type-badge ${move.type.name}`}
-                                >
+                                <span className={`type-badge ${move.type.name}`}>
                                   {move.type.name.toUpperCase()}
                                 </span>
                               </div>
 
                               <div className="recommended-move-details">
                                 <span>{move.damage_class.name}</span>
-                                <span>Power: {move.power || "—"}</span>
+                                <span>Power: {move.power}</span>
                               </div>
                             </div>
                           ))
                         ) : (
-                          <p>No move recommendations found.</p>
+                          <p>No learnable moves found.</p>
                         )}
                       </div>
                     </InfoDropdown>
