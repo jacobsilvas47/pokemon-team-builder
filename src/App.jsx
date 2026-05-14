@@ -35,6 +35,7 @@ import { gameDexes } from "./gameDexes";
     "razor-wind",
     "fly",
     "dragon-rush",
+    "brick-break",
   ];
 
   const greatMoves = [
@@ -317,6 +318,43 @@ import { gameDexes } from "./gameDexes";
                   "focus-punch",
                   "fly",
                   "dig",
+                  "future-sight",
+                  "fire-blast",
+                  "thunder",
+                  "blizzard",
+                  "focus-blast",
+                ];
+
+                const preferredMoves = [
+                  "psychic",
+                  "surf",
+                  "flamethrower",
+                  "thunderbolt",
+                  "ice-beam",
+                  "aura-sphere",
+                  "air-slash",
+                  "earthquake",
+                  "shadow-ball",
+                  "energy-ball",
+                  "sludge-bomb",
+                  "stone-edge",
+                  "rock-slide",
+                  "crunch",
+                  "dark-pulse",
+                  "dragon-pulse",
+                  "outrage",
+                  "dragon-claw",
+                  "play-rough",
+                  "moonblast",
+                  "dazzling-gleam",
+                  "iron-head",
+                  "flash-cannon",
+                  "waterfall",
+                  "close-combat",
+                  "brick-break",
+                  "fire-punch",
+                  "ice-punch",
+                  "thunder-punch",
                 ];
 
                 const usableMoves = moveDetails
@@ -331,18 +369,23 @@ import { gameDexes } from "./gameDexes";
                   )
                   .map((move) => ({
                     ...move,
-                    coverageScore:
-                      move.power +
-                      (move.accuracy || 100) +
-                      (pokemonTypeNames.includes(move.type.name) ? 30 : 0) +
-                      (move.damage_class.name === preferredDamageClass ? 80 : -80),
+                coverageScore:
+                  move.power +
+                  (move.accuracy || 100) +
+                  (pokemonTypeNames.includes(move.type.name) ? 30 : 0) +
+                  (move.damage_class.name === preferredDamageClass ? 120 : -120) +
+                  (preferredMoves.includes(move.name) ? 100 : 0),
                       }));
 
                 const topMoves = coverageTypePriority
                   .map((type) => {
-                    return usableMoves
-                      .filter((move) => move.type.name === type)
-                      .sort((a, b) => b.coverageScore - a.coverageScore)[0];
+                  return usableMoves
+                    .filter(
+                      (move) =>
+                        move.type.name === type &&
+                        move.damage_class.name === preferredDamageClass
+                    )
+                    .sort((a, b) => b.coverageScore - a.coverageScore)[0];
                   })
                   .filter(Boolean)
                   .slice(0, 12);
@@ -881,7 +924,7 @@ import { gameDexes } from "./gameDexes";
     return (
       <div className="app">
         <div className="card">
-          <h1 className="title">PokéTeam Analyzer</h1>
+          <h1 className="title">PokéForge</h1>
 
           <div className="main-layout">
 
